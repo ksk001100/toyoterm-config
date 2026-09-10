@@ -1,3 +1,4 @@
+
 THEME_NAME = "TokyoNight"
 
 def clock
@@ -36,7 +37,7 @@ end
 
 def git_diff_stat(ctx)
   result = Toyoterm.spawn(
-    'sh', '-c', 
+    'sh', '-c',
     '{ git diff HEAD --numstat; git ls-files -o --exclude-standard | xargs wc -l 2>/dev/null | awk \'$2 != "total" && NF==2 {print $1, 0, $2}\'; } | awk \'{add += $1; del += $2} END {printf "+%d/-%d", add, del}\'',
     cwd: ctx.pane.cwd
   )
@@ -52,11 +53,48 @@ Toyoterm.configure do |config|
     font.weight = 400
   end
 
-  config.window.opacity = 0.95
+  config.window do |window|
+    window.image do |img|
+      img.path = nil
+      img.opacity = 0.25
+    end
+    window.opacity = 0.95
+    window.decorations = false
+    window.always_on_top = false
+
+    window.bar :top, interval: 1.0 do |bar|
+      bar.add(:right) do |ctx|
+        parts = []
+        parts << "\u{e22b} #{THEME_NAME}"
+        parts << "\u{f017} #{clock}"
+
+        # battery = battery_percent
+        # parts << battery unless battery.empty?
+        parts.join(" | ")
+      end
+
+      bar.add(:center, "\u{f489} toyoterm")
+    end
+
+    window.bar :bottom, interval: 1.0 do |bar|
+      bar.add(:left) do |ctx|
+        parts = []
+        branch = git_branch(ctx)
+        stat = git_diff_stat(ctx)
+        parts << branch unless branch.empty?
+        parts << stat unless stat.empty?
+        parts.join(' | ')
+      end
+      bar.add(:right) { |ctx| ctx.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL" }
+    end
+  end
+
   config.scrollback_lines = 10_000
-  config.window.decorations = false
-  config.window.always_on_top = false
   config.leader key: "j", mods: "CTRL", timeout: 1000
+
+  config.behavior do |behavior|
+    behavior.allow_osc_notifications = true
+  end
 
   config.keys do
     leader("h").activate_pane(:left)
@@ -71,16 +109,16 @@ Toyoterm.configure do |config|
     leader('s').run { |ctx| ctx.pane.split(:down, cwd: ctx.pane.cwd)}
     leader('c').run { |ctx| ctx.window.new_tab(cwd: ctx.pane.cwd)}
     leader('CTRL+j').next_tab
+    ctrl('-').run { config.font.size -= 1 }
+    ctrl('=').run { config.font.size += 1 }
+    ctrl('[').run { config.window.opacity -= 0.05 }
+    ctrl(']').run { config.window.opacity += 0.05 }
     (1..9).each do |n|
       leader(n).run do |ctx|
         tab = ctx.window.tabs[n - 1]
         tab.activate unless tab.nil?
       end
     end
-    ctrl('-').run { config.font.size -= 1 }
-    ctrl('=').run { config.font.size += 1 }
-    ctrl('[').run { config.window.opacity -= 0.05 }
-    ctrl(']').run { config.window.opacity += 0.05 }
 
     # visual mode
     leader("[").toggle_visual_mode
@@ -98,30 +136,5 @@ Toyoterm.configure do |config|
     key("$").move_visual_selection(:line_end)
     key("y").yank_selection
   end
-
-  config.window.bar :top, interval: 1.0 do |bar|
-    bar.add(:right) do |ctx|
-      parts = []
-      parts << "\u{e22b} #{THEME_NAME}"
-      parts << "\u{f017} #{clock}"
-
-      battery = battery_percent
-      parts << battery unless battery.empty?
-      parts.join(" | ") 
-    end
-
-    bar.add(:center, "\u{f489} toyoterm")
-  end
-
-  config.window.bar :bottom, interval: 1.0 do |bar|
-    bar.add(:left) do |ctx|
-      parts = []
-      branch = git_branch(ctx)
-      stat = git_diff_stat(ctx)
-      parts << branch unless branch.empty?
-      parts << stat unless stat.empty?
-      parts.join(' | ')
-    end
-    bar.add(:right) { |ctx| ctx.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL" }
-  end
 end
+

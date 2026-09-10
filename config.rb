@@ -12,10 +12,10 @@ def battery_percent
     begin
       value = Toyoterm.read_file("/sys/class/power_supply/#{name}/capacity").strip
       icons = [
-        "\u{F0079}", "\u{F0079}", "\u{F0082}",
-        "\u{F0081}", "\u{F0080}", "\u{F007F}",
-        "\u{F007E}", "\u{F007D}", "\u{F007C}",
-        "\u{F007B}", "\u{F007A}"
+        "\u{f0079}", "\u{f0079}", "\u{f0082}",
+        "\u{f0081}", "\u{f0080}", "\u{f007f}",
+        "\u{f007e}", "\u{f007d}", "\u{f007c}",
+        "\u{f007b}", "\u{f007a}"
       ]
       icon = icons[(value.to_i / 10.0).round]
       return "#{icon} #{value}%" unless value.empty?
@@ -31,20 +31,31 @@ def git_branch(ctx)
   return '' if cwd.nil?
 
   result = Toyoterm.spawn('git', 'branch', '--show-current', cwd: cwd)
-  result.success? ? "\u{EC6F} #{result.stdout.strip}" : ''
+  result.success? ? "\u{eC6f} #{result.stdout.strip}" : ''
+end
+
+def git_diff_stat(ctx)
+  result = Toyoterm.spawn(
+    'sh', '-c', 
+    '{ git diff HEAD --numstat; git ls-files -o --exclude-standard | xargs wc -l 2>/dev/null | awk \'$2 != "total" && NF==2 {print $1, 0, $2}\'; } | awk \'{add += $1; del += $2} END {printf "+%d/-%d", add, del}\'',
+    cwd: ctx.pane.cwd
+  )
+  result.success? ? "\u{f044} #{result.stdout.strip}" : ''
 end
 
 Toyoterm.configure do |config|
   config.theme = THEME_NAME
   config.font do |font|
     font.family = "JetBrainsMono Nerd Font"
-    font.fallback = ["Noto Sans Mono CJK JP", "Noto Color Emoji"]
+    font.fallback = ["Hack Nerd Font"]
     font.size = 12.0
     font.weight = 400
   end
 
   config.window.opacity = 0.95
   config.scrollback_lines = 10_000
+  config.window.decorations = false
+  config.window.always_on_top = false
   config.leader key: "j", mods: "CTRL", timeout: 1000
 
   config.keys do
@@ -66,8 +77,8 @@ Toyoterm.configure do |config|
         tab.activate unless tab.nil?
       end
     end
-    ctrl('-').run { config.font.size -= 0.5 }
-    ctrl('=').run { config.font.size += 0.5 }
+    ctrl('-').run { config.font.size -= 1 }
+    ctrl('=').run { config.font.size += 1 }
     ctrl('[').run { config.window.opacity -= 0.05 }
     ctrl(']').run { config.window.opacity += 0.05 }
 
@@ -91,18 +102,26 @@ Toyoterm.configure do |config|
   config.window.bar :top, interval: 1.0 do |bar|
     bar.add(:right) do |ctx|
       parts = []
-      parts << "\u{E22B} #{THEME_NAME}"
-      parts << "\u{F017} #{clock}"
+      parts << "\u{e22b} #{THEME_NAME}"
+      parts << "\u{f017} #{clock}"
 
       battery = battery_percent
       parts << battery unless battery.empty?
       parts.join(" | ") 
     end
 
-    bar.add(:center, "\u{F489} toyoterm")
+    bar.add(:center, "\u{f489} toyoterm")
   end
 
   config.window.bar :bottom, interval: 1.0 do |bar|
-    bar.add(:left) { |ctx| git_branch(ctx) }
+    bar.add(:left) do |ctx|
+      parts = []
+      branch = git_branch(ctx)
+      stat = git_diff_stat(ctx)
+      parts << branch unless branch.empty?
+      parts << stat unless stat.empty?
+      parts.join(' | ')
+    end
+    bar.add(:right) { |ctx| ctx.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL" }
   end
 end

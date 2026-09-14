@@ -5558,8 +5558,7 @@ themes = [
 ]
 
 Toyoterm::Plugin.define "themes" do |plugin|
-  plugin.version = "0.1.0"
-  plugin.requires = ">= 0.1.0, < 0.2.0"
+  plugin.version = "0.0.1"
 
   themes.each do |values|
     plugin.theme values[0] do |theme|
@@ -5576,6 +5575,19 @@ Toyoterm::Plugin.define "themes" do |plugin|
       theme.pane_border = values[11]
       theme.search_match = values[12]
       theme.search_match_active = values[13]
+    end
+  end
+
+  plugin.command :choose_theme do
+    Toyoterm.select(
+      title: "Select theme",
+      items: Toyoterm.themes
+    ) do |theme_name|
+      next if theme_name.nil?
+
+      Toyoterm.configure do |config|
+        config.theme = theme_name
+      end
     end
   end
 end

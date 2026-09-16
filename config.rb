@@ -51,23 +51,31 @@ end
 
 def battery_percent(section)
   section.add do |ctx|
+    result = ""
+
     ["BAT0", "BAT1"].each do |name|
       begin
         value = Toyoterm.read_file("/sys/class/power_supply/#{name}/capacity").strip
+
         icons = [
           "\u{f0079}", "\u{f0079}", "\u{f0082}",
           "\u{f0081}", "\u{f0080}", "\u{f007f}",
           "\u{f007e}", "\u{f007d}", "\u{f007c}",
           "\u{f007b}", "\u{f007a}"
         ]
-        icon = icons[(value.to_i / 10.0).round]
-        return "#{icon} #{value}%" unless value.empty?
+
+        unless value.empty?
+          icon = icons[-(value.to_i / 10.0).round]
+          result = "#{icon} #{value}%"
+          break
+        end
       rescue
-        # Desktops and systems with a differently named battery have no battery item.
+        # TODO
       end
     end
-    ""
-  end 
+
+    result
+  end
 end
 
 Toyoterm.configure do |config|

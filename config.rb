@@ -160,6 +160,8 @@ Toyoterm.configure do |config|
     leader("[").toggle_visual_mode
     key("v").select_visual_selection
     key("ESCAPE").end_visual_selection
+    key("w").move_visual_selection(:word_forward)
+    key("b").move_visual_selection(:word_backward)
     key("h").move_visual_selection(:left)
     key("j").move_visual_selection(:down)
     key("k").move_visual_selection(:up)

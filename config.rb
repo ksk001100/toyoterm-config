@@ -1,246 +1,281 @@
 # =============================================================================
-# User Configuration Settings
+# Preferences
 # =============================================================================
 
-THEME_NAME = "Laser"
+module UserConfig
+  THEME = "Laser"
+
+  FONT_FAMILY = "JetBrainsMono Nerd Font"
+  FONT_FALLBACK = ["Hack Nerd Font"].freeze
+  FONT_SIZE = 12.0
+  FONT_SIZE_RANGE = (6.0..48.0)
+
+  WINDOW_OPACITY = 0.95
+  OPACITY_RANGE = (0.1..1.0)
+
+  SCROLLBACK_LINES = 10_000
+  LEADER_KEY = "j"
+  LEADER_MODS = "CTRL"
+  LEADER_TIMEOUT = 1_000
+
+  STATUS_SEPARATOR = " | "
+end
 
 # =============================================================================
-# Status Bar Widgets
+# Status bars
 # =============================================================================
 
 module StatusWidgets
-  # Battery level icons in ascending order (0%..100%).
-  # Material Design Icons:
-  # \u{f0083}: battery-alert (0%)
-  # \u{f0082}..\u{f007a}: battery-10 .. battery-90
-  # \u{f0079}: battery (100% full)
+  BATTERY_NAMES = ["BAT0", "BAT1"].freeze
   BATTERY_ICONS = [
     "\u{f0083}", "\u{f0082}", "\u{f0081}", "\u{f0080}", "\u{f007f}",
     "\u{f007e}", "\u{f007d}", "\u{f007c}", "\u{f007b}", "\u{f007a}",
     "\u{f0079}"
   ].freeze
 
-  GIT_DIFF_CMD = <<~'SH'.strip.freeze
-    {
-      git diff HEAD --numstat
-      git ls-files -o --exclude-standard | xargs wc -l 2>/dev/null | awk '$2 != "total" && NF == 2 { print $1, 0, $2 }'
-    } | awk '{ add += $1; del += $2 } END { printf "+%d/-%d", add, del }'
-  SH
+  UNIX_GIT_DIFF_COMMAND = [
+    "sh",
+    "-c",
+    <<~'SH'.strip
+      {
+        git diff HEAD --numstat
+        git ls-files -o --exclude-standard | xargs wc -l 2>/dev/null | awk '$2 != "total" && NF == 2 { print $1, 0, $2 }'
+      } | awk '{ add += $1; del += $2 } END { printf "+%d/-%d", add, del }'
+    SH
+  ].freeze
 
-  def self.safe_cwd(ctx)
-    cwd = ctx.pane ? ctx.pane.cwd : nil
-    cwd && !cwd.empty? ? cwd : nil
+  WINDOWS_GIT_DIFF_COMMAND = [
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    <<~'POWERSHELL'.strip
+      $added = 0
+      $deleted = 0
+
+      git diff HEAD --numstat | ForEach-Object {
+        $parts = $_ -split "`t", 3
+        $value = 0
+        if ([int]::TryParse($parts[0], [ref]$value)) { $added += $value }
+        $value = 0
+        if ([int]::TryParse($parts[1], [ref]$value)) { $deleted += $value }
+      }
+
+      git -c core.quotepath=false ls-files -o --exclude-standard | ForEach-Object {
+        try {
+          $bytes = [IO.File]::ReadAllBytes((Join-Path (Get-Location) $_))
+          foreach ($byte in $bytes) {
+            if ($byte -eq 10) { $added++ }
+          }
+        } catch {}
+      }
+
+      [Console]::Write("+$added/-$deleted")
+    POWERSHELL
+  ].freeze
+
+  def self.configure(window, config)
+    window.bar :top, interval: 1.0 do |bar|
+      bar.section(:center) { |section| section.add("\u{f489} toyoterm") }
+
+      bar.section(:right, separator: UserConfig::STATUS_SEPARATOR) do |section|
+        theme(section, config)
+        clock(section)
+        battery(section) if Toyoterm.platform == :linux
+      end
+    end
+
+    window.bar :bottom, interval: 1.0 do |bar|
+      bar.section(:left, separator: UserConfig::STATUS_SEPARATOR) do |section|
+        git_branch(section)
+        git_diff_count(section)
+      end
+
+      bar.section(:right) do |section|
+        section.add do |context|
+          context.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL"
+        end
+      end
+    end
   end
 
-  def self.current_theme(section, config)
+  def self.theme(section, config)
     section.add do
-      theme = config.theme
-      theme && !theme.empty? ? "\u{e22b} #{theme}" : ""
+      name = config.theme
+      name && !name.empty? ? "\u{e22b} #{name}" : ""
     end
   end
 
   def self.clock(section)
     section.add do
-      t = Time.now
-      "\u{f017} #{sprintf('%04d-%02d-%02d %02d:%02d:%02d', t.year, t.month, t.day, t.hour, t.min, t.sec)}"
+      now = Time.now
+      timestamp = sprintf(
+        "%04d-%02d-%02d %02d:%02d:%02d",
+        now.year, now.month, now.day, now.hour, now.min, now.sec
+      )
+      "\u{f017} #{timestamp}"
     end
   end
 
   def self.git_branch(section)
     section.add_async(
-      "git",
-      "branch",
-      "--show-current",
+      "git", "branch", "--show-current",
       interval: 2.0,
-      cwd: ->(ctx) { safe_cwd(ctx) },
+      cwd: ->(context) { pane_cwd(context) },
       initial: ""
     ) do |result|
-      if result.success?
-        branch = result.stdout.strip
-        branch.empty? ? "" : "\u{e725} #{branch}"
-      else
-        ""
-      end
+      branch = result.success? ? result.stdout.strip : ""
+      branch.empty? ? "" : "\u{e725} #{branch}"
     end
   end
 
   def self.git_diff_count(section)
+    command = if Toyoterm.platform == :windows
+                WINDOWS_GIT_DIFF_COMMAND
+              else
+                UNIX_GIT_DIFF_COMMAND
+              end
+
     section.add_async(
-      "sh",
-      "-c",
-      GIT_DIFF_CMD,
+      *command,
       interval: 2.0,
-      cwd: ->(ctx) { safe_cwd(ctx) },
+      cwd: ->(context) { pane_cwd(context) },
       initial: ""
     ) do |result|
       result.success? ? "\u{f044} #{result.stdout.strip}" : ""
     end
   end
 
-  def self.battery_percent(section)
+  def self.battery(section)
     return unless Toyoterm.platform == :linux
 
     section.add do
-      result = ""
-
-      ["BAT0", "BAT1"].each do |name|
+      display = ""
+      BATTERY_NAMES.each do |name|
         begin
-          path = "/sys/class/power_supply/#{name}/capacity"
-          content = Toyoterm.read_file(path).strip
-          next if content.empty?
+          value = Toyoterm.read_file("/sys/class/power_supply/#{name}/capacity").strip
+          next if value.empty?
 
-          percent = content.to_i
-          idx = (percent / 10.0).round
-          idx = 0 if idx < 0
-          idx = 10 if idx > 10
-
-          icon = BATTERY_ICONS[idx]
-          result = "#{icon} #{percent}%"
+          percent = value.to_i
+          icon_index = (percent / 10.0).round
+          icon_index = 0 if icon_index < 0
+          icon_index = 10 if icon_index > 10
+          display = "#{BATTERY_ICONS[icon_index]} #{percent}%"
           break
-        rescue
-          # Battery interface unavailable or unreadable
+        rescue StandardError
+          # Try the next conventional battery device.
         end
       end
-
-      result
+      display
     end
+  end
+
+  def self.pane_cwd(context)
+    cwd = context.pane ? context.pane.cwd : nil
+    cwd && !cwd.empty? ? cwd : nil
   end
 end
 
 # =============================================================================
-# Main Configuration
+# Configuration
 # =============================================================================
 
 Toyoterm.configure do |config|
-  # Default shell selection
   # config.default_shell = "wsl.exe"
 
-  config.theme = THEME_NAME
-  config.scrollback_lines = 10_000
-  config.leader key: "j", mods: "CTRL", timeout: 1000
+  config.theme = UserConfig::THEME
+  config.scrollback_lines = UserConfig::SCROLLBACK_LINES
+  config.leader(
+    key: UserConfig::LEADER_KEY,
+    mods: UserConfig::LEADER_MODS,
+    timeout: UserConfig::LEADER_TIMEOUT
+  )
 
-  # ---------------------------------------------------------------------------
-  # Font
-  # ---------------------------------------------------------------------------
   config.font do |font|
-    font.family = "JetBrainsMono Nerd Font"
-    font.fallback = ["Hack Nerd Font"]
-    font.size = 12.0
+    font.family = UserConfig::FONT_FAMILY
+    font.fallback = UserConfig::FONT_FALLBACK
+    font.size = UserConfig::FONT_SIZE
   end
 
-  # ---------------------------------------------------------------------------
-  # Window & Status Bars
-  # ---------------------------------------------------------------------------
   config.window do |window|
-    window.opacity = 0.95
+    window.opacity = UserConfig::WINDOW_OPACITY
     window.decorations = true
     window.always_on_top = false
 
-    window.image do |img|
-      img.path = nil
-      img.opacity = 0.25
+    window.image do |image|
+      image.path = nil
+      image.opacity = 0.25
     end
 
-    # Top Status Bar
-    window.bar :top, interval: 1.0 do |bar|
-      bar.section(:center, separator: " | ") do |section|
-        section.add { "\u{f489} toyoterm" }
-      end
-
-      bar.section(:right, separator: " | ") do |section|
-        StatusWidgets.current_theme(section, config)
-        StatusWidgets.clock(section)
-        StatusWidgets.battery_percent(section)
-      end
-    end
-
-    # Bottom Status Bar
-    window.bar :bottom, interval: 1.0 do |bar|
-      bar.section(:left, separator: " | ") do |section|
-        StatusWidgets.git_branch(section)
-        StatusWidgets.git_diff_count(section)
-      end
-
-      bar.section(:right, separator: " | ") do |section|
-        section.add { |ctx| ctx.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL" }
-      end
-    end
+    StatusWidgets.configure(window, config)
   end
 
-  # ---------------------------------------------------------------------------
-  # Behavior
-  # ---------------------------------------------------------------------------
   config.behavior do |behavior|
     behavior.allow_osc_notifications = true
   end
 
-  # ---------------------------------------------------------------------------
-  # Keybindings
-  # ---------------------------------------------------------------------------
-  config.keys do
-    # --- Pane Navigation & Management ---
-    leader("h").activate_pane(:left)
-    leader("j").activate_pane(:down)
-    leader("k").activate_pane(:up)
-    leader("l").activate_pane(:right)
-    leader("m").toggle_maximize
-    leader("z").toggle_zoom
-    leader("v").run { |ctx| ctx.pane.split(:right, cwd: ctx.pane.cwd) }
-    leader("s").run { |ctx| ctx.pane.split(:down, cwd: ctx.pane.cwd) }
+  config.keys do |keys|
+    # Pane navigation and layout
+    { "h" => :left, "j" => :down, "k" => :up, "l" => :right }.each do |key, direction|
+      keys.leader(key).activate_pane(direction)
+    end
+    keys.leader("v").run { |context| context.pane.split(:right, cwd: context.pane.cwd) }
+    keys.leader("s").run { |context| context.pane.split(:down, cwd: context.pane.cwd) }
+    keys.leader("z").toggle_zoom
+    keys.leader("m").toggle_maximize
 
-    # --- Tab Navigation & Management ---
-    leader("c").run { |ctx| ctx.window.new_tab(cwd: ctx.pane.cwd) }
-    leader("CTRL+j").next_tab
-    (1..9).each do |n|
-      leader(n.to_s).run do |ctx|
-        tab = ctx.window.tabs[n - 1]
-        tab.activate unless tab.nil?
+    # Tabs
+    keys.leader("c").run { |context| context.window.new_tab(cwd: context.pane.cwd) }
+    keys.leader("CTRL+j").next_tab
+    (1..9).each do |number|
+      keys.leader(number.to_s).run do |context|
+        tab = context.window.tabs[number - 1]
+        tab.activate if tab
       end
     end
 
-    # --- Window & Appearance Controls ---
-    leader("r").reload_config
-    leader("t").command(:choose_theme)
+    # Configuration and appearance
+    keys.leader("r").reload_config
+    keys.leader("t").command(:choose_theme)
 
-    ctrl("-").run do
-      new_size = config.font.size - 1.0
-      config.font.size = new_size >= 6.0 ? new_size : 6.0
+    keys.ctrl("-").run do
+      config.font.size = [config.font.size - 1.0, UserConfig::FONT_SIZE_RANGE.begin].max
     end
-    ctrl("=").run do
-      new_size = config.font.size + 1.0
-      config.font.size = new_size <= 48.0 ? new_size : 48.0
+    keys.ctrl("=").run do
+      config.font.size = [config.font.size + 1.0, UserConfig::FONT_SIZE_RANGE.end].min
     end
-
-    ctrl("[").run do
-      new_opacity = config.window.opacity - 0.05
-      config.window.opacity = new_opacity >= 0.1 ? new_opacity : 0.1
+    keys.ctrl("[").run do
+      config.window.opacity = [config.window.opacity - 0.05, UserConfig::OPACITY_RANGE.begin].max
     end
-    ctrl("]").run do
-      new_opacity = config.window.opacity + 0.05
-      config.window.opacity = new_opacity <= 1.0 ? new_opacity : 1.0
+    keys.ctrl("]").run do
+      config.window.opacity = [config.window.opacity + 0.05, UserConfig::OPACITY_RANGE.end].min
     end
 
-    # --- Clipboard ---
-    ctrl_shift("v").paste_clipboard
+    # Clipboard
+    keys.ctrl_shift("c").copy_selection
+    keys.ctrl_shift("v").paste_clipboard
 
-    # --- Visual Mode ---
-    leader("[").toggle_visual_mode
-    key("v").select_visual_selection
-    key("ESCAPE").end_visual_selection
-    key("y").yank_selection
+    # Vim-like visual selection (these keys are inactive outside visual mode)
+    keys.leader("[").toggle_visual_mode
+    keys.key("v").select_visual_selection
+    keys.key("ESCAPE").end_visual_selection
+    keys.key("y").yank_selection
 
-    # Visual Mode Cursor Movement
-    key("h").move_visual_selection(:left)
-    key("j").move_visual_selection(:down)
-    key("k").move_visual_selection(:up)
-    key("l").move_visual_selection(:right)
-    key("LEFT").move_visual_selection(:left)
-    key("DOWN").move_visual_selection(:down)
-    key("UP").move_visual_selection(:up)
-    key("RIGHT").move_visual_selection(:right)
-    key("w").move_visual_selection(:word_forward)
-    key("b").move_visual_selection(:word_backward)
-    key("0").move_visual_selection(:line_start)
-    key("$").move_visual_selection(:line_end)
+    {
+      "h" => :left,
+      "j" => :down,
+      "k" => :up,
+      "l" => :right,
+      "LEFT" => :left,
+      "DOWN" => :down,
+      "UP" => :up,
+      "RIGHT" => :right,
+      "w" => :word_forward,
+      "b" => :word_backward,
+      "0" => :line_start,
+      "$" => :line_end
+    }.each do |key, direction|
+      keys.key(key).move_visual_selection(direction)
+    end
   end
 end

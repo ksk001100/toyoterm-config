@@ -259,7 +259,7 @@ Toyoterm.configure do |config|
       primary("v").paste_clipboard
     when :windows
       ctrl("c").copy_selection
-      ctrl("v").copy_selection
+      ctrl("v").paste_clipboard
     when :linux
       ctrl_shift("c").copy_selection
       ctrl_shift("v").paste_clipboard

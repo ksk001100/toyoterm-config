@@ -192,10 +192,10 @@ Toyoterm.configure do |config|
     timeout: UserConfig::LEADER_TIMEOUT
   )
 
-  config.font do
-    family = UserConfig::FONT_FAMILY
-    fallback = UserConfig::FONT_FALLBACK
-    size = UserConfig::FONT_SIZE
+  config.font do |font|
+    font.family = UserConfig::FONT_FAMILY
+    font.fallback = UserConfig::FONT_FALLBACK
+    font.size = UserConfig::FONT_SIZE
   end
 
   config.window do |window|

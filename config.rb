@@ -255,6 +255,9 @@ Toyoterm.configure do |config|
     keys.ctrl_shift("c").copy_selection
     keys.ctrl_shift("v").paste_clipboard
 
+    # Git
+    leader("b").command(:select_branch)
+
     # Vim-like visual selection (these keys are inactive outside visual mode)
     keys.leader("[").toggle_visual_mode
     keys.key("v").select_visual_selection

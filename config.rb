@@ -192,10 +192,10 @@ Toyoterm.configure do |config|
     timeout: UserConfig::LEADER_TIMEOUT
   )
 
-  config.font do |font|
-    font.family = UserConfig::FONT_FAMILY
-    font.fallback = UserConfig::FONT_FALLBACK
-    font.size = UserConfig::FONT_SIZE
+  config.font do
+    family = UserConfig::FONT_FAMILY
+    fallback = UserConfig::FONT_FALLBACK
+    size = UserConfig::FONT_SIZE
   end
 
   config.window do |window|
@@ -215,55 +215,64 @@ Toyoterm.configure do |config|
     behavior.allow_osc_notifications = true
   end
 
-  config.keys do |keys|
+  config.keys do
     # Pane navigation and layout
     { "h" => :left, "j" => :down, "k" => :up, "l" => :right }.each do |key, direction|
-      keys.leader(key).activate_pane(direction)
+      leader(key).activate_pane(direction)
     end
-    keys.leader("v").run { |context| context.pane.split(:right, cwd: context.pane.cwd) }
-    keys.leader("s").run { |context| context.pane.split(:down, cwd: context.pane.cwd) }
-    keys.leader("z").toggle_zoom
-    keys.leader("m").toggle_maximize
+    leader("v").run { |context| context.pane.split(:right, cwd: context.pane.cwd) }
+    leader("s").run { |context| context.pane.split(:down, cwd: context.pane.cwd) }
+    leader("z").toggle_zoom
+    leader("m").toggle_maximize
 
     # Tabs
-    keys.leader("c").run { |context| context.window.new_tab(cwd: context.pane.cwd) }
-    keys.leader("CTRL+j").next_tab
+    leader("c").run { |context| context.window.new_tab(cwd: context.pane.cwd) }
+    leader("CTRL+j").next_tab
     (1..9).each do |number|
-      keys.leader(number.to_s).run do |context|
+      leader(number.to_s).run do |context|
         tab = context.window.tabs[number - 1]
         tab.activate if tab
       end
     end
 
     # Configuration and appearance
-    keys.leader("r").reload_config
-    keys.leader("t").command(:choose_theme)
+    leader("r").reload_config
+    leader("t").command(:choose_theme)
 
-    keys.ctrl("-").run do
+    ctrl("-").run do
       config.font.size = [config.font.size - 1.0, UserConfig::FONT_SIZE_RANGE.begin].max
     end
-    keys.ctrl("=").run do
+    ctrl("=").run do
       config.font.size = [config.font.size + 1.0, UserConfig::FONT_SIZE_RANGE.end].min
     end
-    keys.ctrl("[").run do
+    ctrl("[").run do
       config.window.opacity = [config.window.opacity - 0.05, UserConfig::OPACITY_RANGE.begin].max
     end
-    keys.ctrl("]").run do
+    ctrl("]").run do
       config.window.opacity = [config.window.opacity + 0.05, UserConfig::OPACITY_RANGE.end].min
     end
 
     # Clipboard
-    keys.ctrl_shift("c").copy_selection
-    keys.ctrl_shift("v").paste_clipboard
+    case Toyoterm.platform
+    when :macos
+      primary("c").copy_selection
+      primary("v").paste_clipboard
+    when :windows
+      ctrl("c").copy_selection
+      ctrl("v").copy_selection
+    when :linux
+      ctrl_shift("c").copy_selection
+      ctrl_shift("v").paste_clipboard
+    end
 
     # Git
     leader("b").command(:select_branch)
 
-    # Vim-like visual selection (these keys are inactive outside visual mode)
-    keys.leader("[").toggle_visual_mode
-    keys.key("v").select_visual_selection
-    keys.key("ESCAPE").end_visual_selection
-    keys.key("y").yank_selection
+    # Vim-like visual selection (these are inactive outside visual mode)
+    leader("[").toggle_visual_mode
+    key("v").select_visual_selection
+    key("ESCAPE").end_visual_selection
+    key("y").yank_selection
 
     {
       "h" => :left,
@@ -279,7 +288,7 @@ Toyoterm.configure do |config|
       "0" => :line_start,
       "$" => :line_end
     }.each do |key, direction|
-      keys.key(key).move_visual_selection(direction)
+      key(key).move_visual_selection(direction)
     end
   end
 end

@@ -19,6 +19,7 @@ module UserConfig
   LEADER_TIMEOUT = 1_000
 
   STATUS_SEPARATOR = " | "
+  WALLPAPER = "./wallpapers/toyoterm_wallpaper.png"
 end
 
 # =============================================================================

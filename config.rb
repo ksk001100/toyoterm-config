@@ -76,7 +76,7 @@ module StatusWidgets
   ].freeze
 
   def self.configure(window, config)
-    window.bar :top, interval: 1.0 do |bar|
+    window.bar :top do |bar|
       bar.section(:center) { |section| section.add("\u{f489} toyoterm") }
 
       bar.section(:right, separator: UserConfig::STATUS_SEPARATOR) do |section|
@@ -86,14 +86,14 @@ module StatusWidgets
       end
     end
 
-    window.bar :bottom, interval: 1.0 do |bar|
+    window.bar :bottom do |bar|
       bar.section(:left, separator: UserConfig::STATUS_SEPARATOR) do |section|
         git_branch(section)
         git_diff_count(section)
       end
 
       bar.section(:right) do |section|
-        section.add do |context|
+        section.add, interval: 1.0 do |context|
           context.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL"
         end
       end
@@ -101,14 +101,14 @@ module StatusWidgets
   end
 
   def self.theme(section, config)
-    section.add do
+    section.add, interval: 5.0 do
       name = config.theme
       name && !name.empty? ? "\u{e22b} #{name}" : ""
     end
   end
 
   def self.clock(section)
-    section.add do
+    section.add, interval: 1.0 do
       now = Time.now
       timestamp = sprintf(
         "%04d-%02d-%02d %02d:%02d:%02d",
@@ -150,7 +150,7 @@ module StatusWidgets
   def self.battery(section)
     return unless Toyoterm.platform == :linux
 
-    section.add do
+    section.add, interval: 5.0 do
       display = ""
       BATTERY_NAMES.each do |name|
         begin

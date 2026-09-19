@@ -154,7 +154,7 @@ module StatusWidgets
       display = ""
       BATTERY_NAMES.each do |name|
         begin
-          value = Toyoterm.read_file("/sys/class/power_supply/#{name}/capacity").strip
+          value = File.read("/sys/class/power_supply/#{name}/capacity").strip
           next if value.empty?
 
           percent = value.to_i

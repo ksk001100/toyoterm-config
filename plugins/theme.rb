@@ -5557,37 +5557,33 @@ themes = [
   ],
 ]
 
-Toyoterm::Plugin.define "themes" do |plugin|
-  plugin.version = "0.0.1"
-
-  themes.each do |values|
-    plugin.theme values[0] do |theme|
-      theme.background = values[1]
-      theme.foreground = values[2]
-      theme.cursor = values[3]
-      theme.selection = values[4]
-      theme.ansi = values[5]
-      theme.tab_bar = values[6]
-      theme.tab_active = values[7]
-      theme.tab_inactive = values[8]
-      theme.workspace_bar = values[9]
-      theme.status_bar = values[10]
-      theme.pane_border = values[11]
-      theme.search_match = values[12]
-      theme.search_match_active = values[13]
-    end
+themes.each do |values|
+  Toyoterm.theme values[0] do |theme|
+    theme.background = values[1]
+    theme.foreground = values[2]
+    theme.cursor = values[3]
+    theme.selection = values[4]
+    theme.ansi = values[5]
+    theme.tab_bar = values[6]
+    theme.tab_active = values[7]
+    theme.tab_inactive = values[8]
+    theme.workspace_bar = values[9]
+    theme.status_bar = values[10]
+    theme.pane_border = values[11]
+    theme.search_match = values[12]
+    theme.search_match_active = values[13]
   end
+end
 
-  plugin.command :choose_theme do
-    Toyoterm.select(
-      title: "Select theme",
-      items: Toyoterm.themes
-    ) do |theme_name|
-      next if theme_name.nil?
+Toyoterm.command :choose_theme do
+  Toyoterm.select(
+    title: "Select theme",
+    items: Toyoterm.themes
+  ) do |theme_name|
+    next if theme_name.nil?
 
-      Toyoterm.configure do |config|
-        config.theme = theme_name
-      end
+    Toyoterm.configure do |config|
+      config.theme = theme_name
     end
   end
 end

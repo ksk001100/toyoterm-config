@@ -1,5 +1,5 @@
-require 'plugins/theme'
-require 'plugins/git'
+require_relative "plugins/theme"
+require_relative "plugins/git"
 
 # =============================================================================
 # Preferences
@@ -96,7 +96,7 @@ module StatusWidgets
       end
 
       bar.section(:right) do |section|
-        section.add, interval: 1.0 do |context|
+        section.add(interval: 1.0) do |context|
           context.pane.zoomed? ? "\u{f065} ZOOM" : "\u{f066} NORMAL"
         end
       end
@@ -104,14 +104,14 @@ module StatusWidgets
   end
 
   def self.theme(section, config)
-    section.add, interval: 5.0 do
+    section.add(interval: 5.0) do
       name = config.theme
       name && !name.empty? ? "\u{e22b} #{name}" : ""
     end
   end
 
   def self.clock(section)
-    section.add, interval: 1.0 do
+    section.add(interval: 1.0) do
       now = Time.now
       timestamp = sprintf(
         "%04d-%02d-%02d %02d:%02d:%02d",
@@ -153,7 +153,7 @@ module StatusWidgets
   def self.battery(section)
     return unless Toyoterm.platform == :linux
 
-    section.add, interval: 5.0 do
+    section.add(interval: 5.0) do
       display = ""
       BATTERY_NAMES.each do |name|
         begin

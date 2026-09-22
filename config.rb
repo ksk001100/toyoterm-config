@@ -20,7 +20,8 @@ module UserConfig
   LEADER_TIMEOUT = 1_000
 
   STATUS_SEPARATOR = " | "
-  WALLPAPER = "./wallpapers/toyoterm_wallpaper.png"
+  WALLPAPER_H = "./wallpapers/toyoterm_wallpaper_H.png"
+  WALLPAPER_V = "./wallpapers/toyoterm_wallpaper_V.png"
 end
 
 # =============================================================================
@@ -199,7 +200,7 @@ Toyoterm.configure do |config|
     window.always_on_top = false
 
     window.image do |image|
-      image.path = UserConfig::WALLPAPER
+      image.path = UserConfig::WALLPAPER_H
       image.opacity = 0.25
     end
 
@@ -285,5 +286,11 @@ Toyoterm.configure do |config|
     }.each do |key, direction|
       key(key).move_visual_selection(direction)
     end
+  end
+end
+
+Toyoterm.on :window_resized do |event|
+  Toyoterm.configure do |config|
+    config.window.image.path = event.width > event.height ? UserConfig::WALLPAPER_H : UserConfig::WALLPAPER_V
   end
 end

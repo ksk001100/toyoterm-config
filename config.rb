@@ -1,3 +1,4 @@
+require_relative "setting"
 require_relative "plugins/theme"
 require_relative "plugins/git"
 
@@ -8,9 +9,6 @@ require_relative "plugins/git"
 module UserConfig
   THEME = "Laser"
 
-  FONT_FAMILY = "JetBrainsMono Nerd Font"
-  FONT_FALLBACK = ["Hack Nerd Font"].freeze
-  FONT_SIZE = 12.0
   FONT_SIZE_RANGE = (6.0..48.0)
 
   WINDOW_OPACITY = 0.95
@@ -195,19 +193,13 @@ Toyoterm.configure do |config|
     timeout: UserConfig::LEADER_TIMEOUT
   )
 
-  config.font do |font|
-    font.family = UserConfig::FONT_FAMILY
-    font.fallback = UserConfig::FONT_FALLBACK
-    font.size = UserConfig::FONT_SIZE
-  end
-
   config.window do |window|
     window.opacity = UserConfig::WINDOW_OPACITY
     window.decorations = true
     window.always_on_top = false
 
     window.image do |image|
-      image.path = nil
+      image.path = UserConfig::WALLPAPER
       image.opacity = 0.25
     end
 

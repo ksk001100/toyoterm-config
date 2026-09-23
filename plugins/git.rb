@@ -1,3 +1,7 @@
+# =============================================================================
+# Git Plugin
+# =============================================================================
+
 Toyoterm.command :select_branch do |context|
   cwd = context.pane.cwd
   result = Toyoterm.spawn(

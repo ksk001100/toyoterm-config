@@ -33,8 +33,4 @@ Toyoterm.configure do |config|
     window.decorations = true
     window.always_on_top = false
   end
-
-  config.behavior do |behavior|
-    behavior.allow_osc_notifications = true
-  end
 end

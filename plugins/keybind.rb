@@ -25,6 +25,7 @@ Toyoterm.configure do |config|
     # -------------------------------------------------------------------------
     leader("c").run { |context| context.window.new_tab(cwd: context.pane.cwd) }
     leader("CTRL+j").next_tab
+    leader("CTRL+k").previous_tab
     (1..9).each do |number|
       leader(number.to_s).run do |context|
         tab = context.window.tabs[number - 1]
